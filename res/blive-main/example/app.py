@@ -10,9 +10,8 @@ from blive.msg import (
     SuperChatMsg,
 )
 
-app = BLiver(510)
-
-
+app = BLiver(9541125)
+  
 @app.on(Events.DANMU_MSG)
 async def listen(ctx: BLiverCtx):
     danmu = DanMuMsg(ctx.body)
@@ -22,7 +21,7 @@ async def listen(ctx: BLiverCtx):
 
 @app.on(Events.HEARTBEAT_REPLY)
 async def liver_popularity(ctx: BLiverCtx):
-    print(ctx.body['popularity'])
+    print("[HB] 当前人气值:", ctx.body['popularity'])
 
 @app.on(Events.INTERACT_WORD)
 async def listen_join(ctx: BLiverCtx):
@@ -38,7 +37,7 @@ async def listen_join(ctx: BLiverCtx):
 async def listen_sc(ctx: BLiverCtx):
     msg = SuperChatMsg(ctx.body)
     print(
-        f"[sc] 感谢 {msg.sender['name']}({msg.sender['medal']['medal_name']}:{msg.sender['medal']['medal_level']})的价值 {msg.price} 的sc\n\n\t{msg.content}\n"
+        f"[SC] 感谢 {msg.sender['name']}({msg.sender['medal']['medal_name']}:{msg.sender['medal']['medal_level']})的价值 {msg.price} 的sc\n\n\t{msg.content}\n"
     )
 
 
@@ -64,11 +63,11 @@ async def welcome_captain(ctx: BLiverCtx):
     print(f"[热烈欢迎] {msg.copy_writting}\n")
 
 
-@app.on(Events.STOP_LIVE_ROOM_LIST)
-async def stop_live_room_list(ctx: BLiverCtx):
-    # 监听停止直播的房间
-    msg = StopLiveRoomListMsg(ctx.body)
-    print(f"[通知] 停止直播的房间列表:{msg.room_id_list}\n")
+# @app.on(Events.STOP_LIVE_ROOM_LIST)
+# async def stop_live_room_list(ctx: BLiverCtx):
+#     # 监听停止直播的房间
+#     msg = StopLiveRoomListMsg(ctx.body)
+#     print(f"[通知] 停止直播的房间列表:{msg.room_id_list}\n")
 
 
 @app.on(Events.ONLINE_RANK_COUNT)
@@ -77,4 +76,15 @@ async def online_rank(ctx):
     print(f"[通知] 当前在线人气排名 {msg.count}\n")
 
 
-app.run()
+@app.on(Events.LIVE)
+async def liver_popularity(ctx: BLiverCtx):
+    print("[TEST] 上啵")
+
+@app.on(Events.PREPARING)
+async def liver_popularity(ctx: BLiverCtx):
+    print("[TEST] 下啵")
+
+try:
+    app.run()
+except KeyboardInterrupt as exc:
+    print('Quit.')

@@ -4,6 +4,7 @@ import asyncio
 from typing import List, Union
 import aiohttp
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from aiowebsocket.converses import AioWebSocket
 from pyee import AsyncIOEventEmitter
 from .core import (
     BLiveMsgPackage,
@@ -15,6 +16,7 @@ from .core import (
     certification,
     heartbeat,
 )
+from . import const
 
 
 class BLiverCtx:
@@ -53,6 +55,7 @@ class BLiver(AsyncIOEventEmitter):
                 await self.ws.send_bytes(
                     self.packman.pack(heartbeat(), Operation.HEARTBEAT)
                 )
+                if const.TEST: print("[HB] OUT")
                 return
         except (
             aiohttp.ClientConnectionError,
@@ -63,6 +66,7 @@ class BLiver(AsyncIOEventEmitter):
             await self.connect()  # 重新连接
 
     async def connect(self, retries=5):
+        if const.TEST: print("连接中...")
         for i in range(retries):
             try:
                 if not hasattr(self,"real_room_id") or not hasattr(self,"uname"):
@@ -70,7 +74,10 @@ class BLiver(AsyncIOEventEmitter):
                         self.room_id, self.aio_session
                     )
                 url, token = await get_blive_ws_url(self.real_room_id, self.aio_session)
-                self.ws = await self.aio_session.ws_connect(url)
+                self.ws = await self.aio_session.ws_connect(
+                    url,
+                    headers={'User-Agent': const.USER_AGENT},
+                    )
                 # 发送认证
                 await self.ws.send_bytes(
                     self.packman.pack(
@@ -78,6 +85,7 @@ class BLiver(AsyncIOEventEmitter):
                         Operation.AUTH,
                     )
                 )
+                if const.TEST: print("连接成功...")
                 return
             except (
                 aiohttp.ClientConnectionError,
@@ -85,8 +93,10 @@ class BLiver(AsyncIOEventEmitter):
                 ConnectionError,
                 ConnectionResetError,
             ):            
+                
+                if const.TEST: print("第", i, "次链接尝试失败")
                 await asyncio.sleep(1)
-        # raise aiohttp.ClientConnectionError("与服务器连接失败")
+        if const.TEST: raise aiohttp.ClientConnectionError("与服务器连接失败")
 
     async def listen(self):
         self.running = True
@@ -94,12 +104,17 @@ class BLiver(AsyncIOEventEmitter):
         await self.connect()
 
         # 开始30s发送心跳包的定时任务
-        self.scheduler.add_job(self.heartbeat, trigger="interval", seconds=30)
+        # self.scheduler.add_job(self.heartbeat, trigger="interval", seconds=30)
+        # 开始5s发送心跳包的定时任务
+        if const.TEST: print("保持连接，心跳间隔:", const.HB_time, "秒...")
+        self.scheduler.add_job(self.heartbeat, trigger="interval", seconds=const.HB_time)
         self.scheduler.start()
 
         # 开始监听
         while self.running:
             try:
+                # 从live server pp对websocket的仿真发送来看，本机给本机发的消息都能收到，
+                # 也就是说，这里receive不到的本质是ws没有发消息，或者中途被拦截了
                 msg = await self.ws.receive(timeout=60)
                 if msg.type in (
                     aiohttp.WSMsgType.CLOSING,
@@ -116,12 +131,16 @@ class BLiver(AsyncIOEventEmitter):
                 mq = self.packman.unpack(msg.data)
                 ctxs = filter(lambda ctx: ctx.body.get("cmd", None), [BLiverCtx(self, m) for m in mq])
                 for ctx in ctxs:
+                    if const.TEST:
+                        if ctx.body["cmd"] not in(Events.HEARTBEAT_REPLY) :
+                            print(ctx.body["cmd"])
                     self.emit(ctx.body["cmd"], ctx)
             except (
                 aiohttp.ClientConnectionError,
                 ConnectionResetError,
                 asyncio.TimeoutError,
-            ):
+            ) as e:
+                if const.TEST: print(e)
                 await self.connect()
 
     async def graceful_close(self):
@@ -132,6 +151,7 @@ class BLiver(AsyncIOEventEmitter):
 
     def run(self):
         loop = asyncio.get_event_loop()
+        # if const.TEST:    loop.run_until_complete(self.listen())
         loop.create_task(self.listen())
         loop.run_forever()
 

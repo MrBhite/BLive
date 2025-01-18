@@ -9,6 +9,7 @@ from aiohttp.http_websocket import WSMessage
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.util import _Undefined
 from requests.exceptions import ConnectionError
+from .const import TEST
 
 from .core import (
     BWS_MsgPackage,

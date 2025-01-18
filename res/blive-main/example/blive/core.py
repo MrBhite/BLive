@@ -6,12 +6,14 @@ import enum
 import brotli
 import zlib
 from aiohttp import ClientSession
+from . import const
 
 
 async def get_blive_ws_url(roomid,aio_session:ClientSession,ssl=True, platform="pc", player="web"):
     async with aio_session.get(
         f"https://api.live.bilibili.com/room/v1/Danmu/getConf",
-        params={"room_id": roomid, "platform": platform, "player": player},
+        headers={"User-Agent": const.USER_AGENT},
+        params={"room_id": roomid, "platform": platform, "player": player}
     ) as resp:
         data = await resp.json()
         lens = len(data["data"]["host_server_list"])
@@ -20,6 +22,8 @@ async def get_blive_ws_url(roomid,aio_session:ClientSession,ssl=True, platform="
             url = f"wss://{url_obj['host']}:{url_obj['wss_port']}/sub"
         else:
             url = f"ws://{url_obj['host']}:{url_obj['ws_port']}/sub"
+        # if const.TEST:
+            # url = "wss://zj-cn-live-comet.chat.bilibili.com:2245/sub"
         return url, data["data"]["token"]
 
 
@@ -31,7 +35,8 @@ async def get_blive_room_info(roomid,aio_session:ClientSession):
     """
     async with aio_session.get(
         "https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom",
-        params={"room_id": roomid},
+        headers={"User-Agent": const.USER_AGENT},
+        params={"room_id": roomid}
     ) as resp:
         data = await resp.json()
         return (

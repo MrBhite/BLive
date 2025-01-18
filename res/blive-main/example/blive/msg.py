@@ -1,6 +1,7 @@
 from abc import ABC
 import json
 from typing import List
+from .const import TEST
 
 """
 消息操作封装类,目前只封装了弹幕消息操作
