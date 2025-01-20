@@ -1,0 +1,2 @@
+# 资源列表
+- 此目录用以储存模型和数据集，可使用[这个项目](https://github.com/RVC-Boss/GPT-SoVITS)完成模型的训练。也可使用[b站的其他数据集](https://www.bilibili.com/video/BV1Tz421B7w4/?spm_id_from=333.999.0.0&vd_source=90c3ad62264deab0deb351cb8a6dde52)(事实上本人也是这样做的)

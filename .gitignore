@@ -1,0 +1,9 @@
+.venv
+.vscode
+/reference/**/*
+!/reference/blive-main/README.md
+!/reference/blive-main/LICENSE
+!/reference/GPT_SoVITS/README.md
+!/reference/GPT_SoVITS/LICENSE
+/MrBhites/GPT_SoVITS/res/*
+!/MrBhites/GPT_SoVITS/res/README.md
