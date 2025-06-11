@@ -8,9 +8,9 @@ from typing import Dict
 
 import torch
 from pytorch_lightning import LightningModule
-from AR.models.t2s_model import Text2SemanticDecoder
-from AR.modules.lr_schedulers import WarmupCosineLRSchedule
-from AR.modules.optim import ScaledAdam
+from .t2s_model import Text2SemanticDecoder
+from ..modules.lr_schedulers import WarmupCosineLRSchedule
+from ..modules.optim import ScaledAdam
 
 class Text2SemanticLightningModule(LightningModule):
     def __init__(self, config, output_dir, is_train=True):

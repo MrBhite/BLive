@@ -76,7 +76,12 @@ class BLiver(AsyncIOEventEmitter):
                 url, token = await get_blive_ws_url(self.real_room_id, self.aio_session)
                 self.ws = await self.aio_session.ws_connect(
                     url,
-                    headers={'User-Agent': const.USER_AGENT},
+                    headers={'User-Agent': const.USER_AGENT,
+                             'cache-control': 'no-cache',
+                             'connection': 'Upgrade',
+                             'pragma': 'no-cache',
+                             'sec-websocket-extensions':'permessage-deflate; client_max_window_bits'
+                             },
                     )
                 # 发送认证
                 await self.ws.send_bytes(
@@ -101,7 +106,11 @@ class BLiver(AsyncIOEventEmitter):
     async def listen(self):
         self.running = True
         # start listening
-        await self.connect()
+        # await self.connect()
+        try:
+            await self.connect()
+        except Exception as e:
+            print(f"An error occurred: {e}")
 
         # 开始30s发送心跳包的定时任务
         # self.scheduler.add_job(self.heartbeat, trigger="interval", seconds=30)

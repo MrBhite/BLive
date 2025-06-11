@@ -22,8 +22,8 @@ async def get_blive_ws_url(roomid,aio_session:ClientSession,ssl=True, platform="
             url = f"wss://{url_obj['host']}:{url_obj['wss_port']}/sub"
         else:
             url = f"ws://{url_obj['host']}:{url_obj['ws_port']}/sub"
-        # if const.TEST:
-            # url = "wss://zj-cn-live-comet.chat.bilibili.com:2245/sub"
+        if const.TEST:
+            url = "wss://zj-cn-live-comet.chat.bilibili.com:2245/sub"
         return url, data["data"]["token"]
 
 

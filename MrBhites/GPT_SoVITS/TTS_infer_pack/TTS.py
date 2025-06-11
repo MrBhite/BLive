@@ -120,7 +120,7 @@ class TTS_Config:
     def __init__(self, configs: Union[dict, str]=None):
         
         # 设置默认配置文件路径
-        configs_base_path:str = "GPT_SoVITS/configs/"
+        configs_base_path:str = "MrBhites/GPT_SoVITS/configs/"
         os.makedirs(configs_base_path, exist_ok=True)
         self.configs_path:str = os.path.join(configs_base_path, "tts_infer.yaml")
         
@@ -142,6 +142,9 @@ class TTS_Config:
 
         default_config_key = "default"if version=="v1" else "default_v2"
         self.configs:dict = configs.get("custom", deepcopy(self.default_configs[default_config_key]))
+        print(configs)
+        # print(configs.get("custom"))
+        # self.configs:dict = configs.get("custom")
         
         
         self.device = self.configs.get("device", torch.device("cpu"))
@@ -182,7 +185,7 @@ class TTS_Config:
 
             
     def _load_configs(self, configs_path: str)->dict:
-        with open(configs_path, 'r') as f:
+        with open(configs_path, 'r', encoding='utf-8') as f:
             configs = yaml.load(f, Loader=yaml.FullLoader)
     
         return configs

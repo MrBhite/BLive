@@ -1,87 +1,123 @@
-import win32com.client
-from blive import BLiver,  Events, BLiverCtx, const
-from blive.msg import (
-    DanMuMsg,
-    EntryEffectMsg,
-    InteractWordMsg,
-    SendGiftMsg,
-    SuperChatMsg,
-)
-import GPT_SoVITS
+# -*- coding: utf-8 -*-
+import asyncio
+import http.cookies
+import random
+from typing import *
 
-app = BLiver(9541125)
+import aiohttp
 
-def say(body: str):
-    speak = win32com.client.Dispatch("SAPI.SpVoice")
-    speak.Speak(body)
+import blivedm
+import blivedm.models.web as web_models
+import AI_generation_Audio as AI
 
-@app.on(Events.DANMU_MSG)
-async def listen(ctx: BLiverCtx):
-    danmu = DanMuMsg(ctx.body)
-    if const.TEST:
-        print(
-            f'[弹幕] {danmu.sender.name} ({danmu.sender.medal.medal_name}:{danmu.sender.medal.medal_level}): "{danmu.content}"\n'
-        )
-    say(danmu.sender.name + "说:" + danmu.content)
+# 直播间ID的取值看直播间URL
+TEST_ROOM_IDS = [
+    9541125
+]
 
-@app.on(Events.HEARTBEAT_REPLY)
-async def liver_popularity(ctx: BLiverCtx):
-    print("[HB] 当前人气值:", ctx.body['popularity'])
+# 这里填一个已登录账号的cookie的SESSDATA字段的值。不填也可以连接，但是收到弹幕的用户名会打码，UID会变成0
+SESSDATA = '34b6dd1b%2C1764899086%2Ce4a3f%2A61CjAjqeMry8lc8ugmu66xIwq_ufQM87rtQeWuPYEkc64ISk5CXpl2GduL6KpMc2tIhHQSVm1lMlRMRTNrcVZnTVRGRWo4Qkw5aklTc1Y1TVR2ZS1yZFpGUDZwNlpDdGdQR2Q2NVZIeFBhTDVkb1ZPc1dWRFNWRzBjLVROUXVDNW1wOHo3b25Xc1NBIIEC'
 
-@app.on(Events.INTERACT_WORD)
-async def listen_join(ctx: BLiverCtx):
-    join = InteractWordMsg(ctx.body)
-    if const.TEST:
-        print(
-            "[欢迎]",
-            f"{join.user['name']} ({join.user['medal']['medal_name']}:{join.user['medal']['medal_level']})",
-            "进入直播间\n",
-        )
-    say("[欢迎]" + join.user['name'] + "进入直播间")
+session: Optional[aiohttp.ClientSession] = None
 
 
-@app.on(Events.SUPER_CHAT_MESSAGE)
-async def listen_sc(ctx: BLiverCtx):
-    msg = SuperChatMsg(ctx.body)
-    if const.TEST:
-        print(
-            f"[SC] 感谢 {msg.sender['name']}({msg.sender['medal']['medal_name']}:{msg.sender['medal']['medal_level']})的价值 {msg.price} 的sc\n\n\t{msg.content}\n"
-        )
-    say("感谢" + msg.sender['name'] + "送出价值" + msg.price + "的sc")
-
-
-@app.on(Events.SEND_GIFT)
-async def listen_gift(ctx: BLiverCtx):
-    msg = SendGiftMsg(ctx.body)
-    if const.TEST:
-        print(
-            f"[礼物] {msg.sender['name']} ({msg.sender['medal']['medal_name']}:{msg.sender['medal']['medal_level']}) 送出 {msg.gift['gift_name']}\n"
-        )
-    say("感谢" + msg.sender['name'] + "送出的" + msg.gift['gift_name'])
-
-
-@app.on(Events.ENTRY_EFFECT)
-async def welcome_captain(ctx: BLiverCtx):
-    msg = EntryEffectMsg(ctx.body)
-    if const.TEST:
-        print(f"[热烈欢迎] {msg.copy_writting}\n")
-    say("热烈欢迎" + msg.copy_writting + "老爷进入直啵间")
-
-
-@app.on(Events.LIVE)
-async def liver_popularity(ctx: BLiverCtx):
-    if const.TEST:
-        print("[TEST] 上啵")
-    say("上播")
-
-@app.on(Events.PREPARING)
-async def liver_popularity(ctx: BLiverCtx):
-    if const.TEST:
-        print("[TEST] 下啵")
-    say("下播")
-
-if __name__ == "__main__":
+async def main():
+    init_session()
     try:
-        app.run()
-    except KeyboardInterrupt as exc:
-        print('Quit.')
+        await run_single_client()
+        await run_multi_clients()
+    finally:
+        await session.close()
+
+
+def init_session():
+    cookies = http.cookies.SimpleCookie()
+    cookies['SESSDATA'] = SESSDATA
+    cookies['SESSDATA']['domain'] = 'bilibili.com'
+
+    global session
+    session = aiohttp.ClientSession()
+    session.cookie_jar.update_cookies(cookies)
+
+
+async def run_single_client():
+    """
+    演示监听一个直播间
+    """
+    room_id = random.choice(TEST_ROOM_IDS)
+    client = blivedm.BLiveClient(room_id, session=session)
+    handler = MyHandler()
+    client.set_handler(handler)
+
+    client.start()
+    try:
+        # 演示5秒后停止
+        await asyncio.sleep(5)
+        client.stop()
+
+        await client.join()
+    finally:
+        await client.stop_and_close()
+
+
+async def run_multi_clients():
+    """
+    演示同时监听多个直播间
+    """
+    clients = [blivedm.BLiveClient(room_id, session=session) for room_id in TEST_ROOM_IDS]
+    handler = MyHandler()
+    for client in clients:
+        client.set_handler(handler)
+        client.start()
+
+    try:
+        await asyncio.gather(*(
+            client.join() for client in clients
+        ))
+    finally:
+        await asyncio.gather(*(
+            client.stop_and_close() for client in clients
+        ))
+
+
+class MyHandler(blivedm.BaseHandler):
+    # # 演示如何添加自定义回调
+    # _CMD_CALLBACK_DICT = blivedm.BaseHandler._CMD_CALLBACK_DICT.copy()
+    #
+    # # 看过数消息回调
+    # def __watched_change_callback(self, client: blivedm.BLiveClient, command: dict):
+    #     print(f'[{client.room_id}] WATCHED_CHANGE: {command}')
+    # _CMD_CALLBACK_DICT['WATCHED_CHANGE'] = __watched_change_callback  # noqa
+
+    def _on_heartbeat(self, client: blivedm.BLiveClient, message: web_models.HeartbeatMessage):
+        print(f'[{client.room_id}] 心跳')
+
+    def _on_danmaku(self, client: blivedm.BLiveClient, message: web_models.DanmakuMessage):
+        print(f'[{client.room_id}] {message.uname}：{message.msg}')
+        AI.speak(f'{message.uname}说:{message.msg}')
+
+    def _on_gift(self, client: blivedm.BLiveClient, message: web_models.GiftMessage):
+        print(f'[{client.room_id}] {message.uname} 赠送{message.gift_name}x{message.num}'
+              f' （{message.coin_type}瓜子x{message.total_coin}）')
+        AI.speak(f'感谢{message.uname}赠送的{message.gift_name}')
+
+    # def _on_buy_guard(self, client: blivedm.BLiveClient, message: web_models.GuardBuyMessage):
+    #     print(f'[{client.room_id}] {message.username} 上舰，guard_level={message.guard_level}')
+
+    def _on_user_toast_v2(self, client: blivedm.BLiveClient, message: web_models.UserToastV2Message):
+        print(f'[{client.room_id}] {message.username} 上舰，guard_level={message.guard_level}')
+
+    def _on_super_chat(self, client: blivedm.BLiveClient, message: web_models.SuperChatMessage):
+        print(f'[{client.room_id}] 醒目留言 ¥{message.price} {message.uname}：{message.message}')
+
+    def _on_interact_word(self, client: blivedm.BLiveClient, message: web_models.InteractWordMessage):
+        if message.msg_type == 1:
+            print(f'[{client.room_id}] {message.username} 进入房间')
+            AI.speak(f'欢迎{message.username} 进入房间')
+
+
+if __name__ == '__main__':
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print('Keyboard close')
